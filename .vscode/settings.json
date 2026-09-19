@@ -1,3 +1,8 @@
 {
-    "CodeGPT.apiKey": "Gemini CLI"
+    "CodeGPT.apiKey": "Gemini CLI",
+    "claudeCode.useTerminal": true,
+    "Codegeex.Chat.LanguagePreference": "English",
+    "Codegeex.Comment.LanguagePreference": "English",
+    "Codegeex.CommitMessageStyle": "ConventionalCommits",
+    "liveServer.settings.port": 5501
 }

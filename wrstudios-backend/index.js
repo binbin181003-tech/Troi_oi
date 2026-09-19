@@ -1,40 +1,51 @@
+// wrstudios-backend/index.js
+import dotenv from "dotenv";
 import express from "express";
-import bodyParser from "body-parser";
-import jwt from "jsonwebtoken";
 import cors from "cors";
+import authRoutes from "./routes/auth.js";
+import usersRoutes from "./routes/users.js";
+import postsRoutes from "./routes/posts.js";
+import commentsRoutes from "./routes/comments.js";
+import membershipRoutes from "./routes/membership_packages.js";
+import plansRoutes from "./routes/plans.js";
+import transactionsRoutes from "./routes/transactions.js";
+import adminSetupRoutes from "./routes/admin-setup.js";
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const SECRET_KEY = "your-super-secret-key"; // Bạn nên thay đổi chuỗi này
+const PORT = process.env.PORT || 4000;
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Health check
 app.get("/", (req, res) => {
-  res.send("Server is running");
+  res.json({ status: "OK", message: "Server is running", timestamp: new Date() });
 });
 
-// Endpoint để đăng nhập
-app.post("/api/login", (req, res) => {
-  const { username, password } = req.body;
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/posts', postsRoutes);
+app.use('/api/comments', commentsRoutes);
+app.use('/api/membership_packages', membershipRoutes);
+app.use('/api/plans', plansRoutes);
+app.use('/api/transactions', transactionsRoutes);
+app.use('/api/admin-setup', adminSetupRoutes); // ⚠️ DEV ONLY - Disable in production
 
-  // ---- Logic cho Admin ----
-  if (username === "admin" && password === "admin123") {
-    const adminToken = jwt.sign({ username: "admin", role: "admin" }, SECRET_KEY, {
-      expiresIn: "1h", // Token hết hạn sau 1 giờ
-    });
-    return res.json({
-      message: "Admin login successful",
-      token: adminToken,
-      user: { username: "admin", role: "admin" },
-    });
-  }
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Endpoint not found' });
+});
 
-  // Trong tương lai, bạn có thể kết nối với database để kiểm tra user thường ở đây
-
-  return res.status(401).json({ message: "Invalid credentials" });
+// Error handler
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ success: false, error: err.message });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server at http://localhost:${PORT}`);
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`📝 API Documentation: http://localhost:${PORT}/api`);
 });
