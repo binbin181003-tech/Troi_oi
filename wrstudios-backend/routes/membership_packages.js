@@ -8,7 +8,10 @@ const router = express.Router();
 // GET /api/membership_packages - Get all packages
 router.get('/', async (req, res) => {
   try {
-    const [packages] = await db.query('SELECT * FROM membership_packages ORDER BY price ASC');
+    const result = await db.query(
+      'SELECT * FROM membership_packages ORDER BY price ASC'
+    );
+    const packages = result.recordset || [];
     res.json({ success: true, data: packages });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -19,7 +22,15 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const [packages] = await db.query('SELECT * FROM membership_packages WHERE ms_id = ?', [id]);
+
+    const request = db.request();
+    request.input('id', id);
+
+    const result = await request.query(
+      'SELECT * FROM membership_packages WHERE ms_id = @id'
+    );
+
+    const packages = result.recordset || [];
 
     if (packages.length === 0) {
       return res.status(404).json({ success: false, message: 'Package not found' });
@@ -42,11 +53,18 @@ router.post('/', verifyToken, isAdmin, async (req, res) => {
 
     const ms_id = `ms_${Date.now()}`;
 
-    await db.query(
-      `INSERT INTO membership_packages (ms_id, name, price, description, duration, post_limit)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [ms_id, name, price, description || null, duration, post_limit || 10]
-    );
+    const request = db.request();
+    request.input('ms_id', ms_id);
+    request.input('name', name);
+    request.input('price', price);
+    request.input('description', description || null);
+    request.input('duration', duration);
+    request.input('post_limit', post_limit || 10);
+
+    await request.query(`
+      INSERT INTO membership_packages (ms_id, name, price, description, duration, post_limit)
+      VALUES (@ms_id, @name, @price, @description, @duration, @post_limit)
+    `);
 
     res.status(201).json({ success: true, message: 'Package created', ms_id });
   } catch (error) {
@@ -60,11 +78,19 @@ router.put('/:id', verifyToken, isAdmin, async (req, res) => {
     const { id } = req.params;
     const { name, price, description, duration, post_limit } = req.body;
 
-    await db.query(
-      `UPDATE membership_packages SET name = ?, price = ?, description = ?, duration = ?, post_limit = ?
-       WHERE ms_id = ?`,
-      [name, price, description, duration, post_limit, id]
-    );
+    const request = db.request();
+    request.input('id', id);
+    request.input('name', name);
+    request.input('price', price);
+    request.input('description', description);
+    request.input('duration', duration);
+    request.input('post_limit', post_limit);
+
+    await request.query(`
+      UPDATE membership_packages
+      SET name = @name, price = @price, description = @description, duration = @duration, post_limit = @post_limit
+      WHERE ms_id = @id
+    `);
 
     res.json({ success: true, message: 'Package updated' });
   } catch (error) {
@@ -76,7 +102,12 @@ router.put('/:id', verifyToken, isAdmin, async (req, res) => {
 router.delete('/:id', verifyToken, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM membership_packages WHERE ms_id = ?', [id]);
+
+    const request = db.request();
+    request.input('id', id);
+
+    await request.query('DELETE FROM membership_packages WHERE ms_id = @id');
+
     res.json({ success: true, message: 'Package deleted' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
