@@ -9,17 +9,11 @@ const router = express.Router();
 // POST /api/admin-setup/create-admin - Create admin account (DEV ONLY)
 router.post('/create-admin', async (req, res) => {
   try {
-    const { 
-      name = 'admin', 
-      email = 'admin@wrstudios.com', 
-      phone = '0123456789', 
-      password = 'admin123' 
-    } = req.body;
+    const { name = 'admin', email = 'admin@wrstudios.com', phone = '0123456789', password = 'admin123' } = req.body;
 
     // Check if admin already exists
-    const existing = await db.query(
-      "SELECT TOP 1 user_id FROM users WHERE role = @role",
-      { role: 'admin' }
+    const [existing] = await db.query(
+      "SELECT user_id FROM users WHERE role = 'admin' LIMIT 1"
     );
 
     if (existing.length > 0) {
@@ -34,8 +28,8 @@ router.post('/create-admin', async (req, res) => {
 
     await db.query(
       `INSERT INTO users (user_id, name, email, phone, password, status, role, created_at) 
-       VALUES (@user_id, @name, @email, @phone, @password, 'active', 'admin', GETDATE())`,
-      { user_id, name, email, phone, password }
+       VALUES (?, ?, ?, ?, ?, 'active', 'admin', NOW())`,
+      [user_id, name, email, phone, password]
     );
 
     res.status(201).json({
@@ -63,3 +57,4 @@ router.post('/create-admin', async (req, res) => {
 });
 
 export default router;
+

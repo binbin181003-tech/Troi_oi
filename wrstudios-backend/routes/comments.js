@@ -11,23 +11,16 @@ router.get('/post/:postId', async (req, res) => {
     const { postId } = req.params;
     console.log('📝 Fetching comments for post:', postId);
 
-    const result = await db.query(
-      `SELECT 
-         c.comment_id, 
-         c.content_comment, 
-         c.rating, 
-         c.created_at, 
-         c.user_id,
-         u.name AS user_name, 
-         u.image_url
+    const [comments] = await db.query(
+      `SELECT c.comment_id, c.content_comment, c.rating, c.created_at, c.user_id,
+              u.name as user_name, u.image_url
        FROM comment c
        LEFT JOIN users u ON c.user_id = u.user_id
-       WHERE c.post_id = @postId
+       WHERE c.post_id = ?
        ORDER BY c.created_at DESC`,
-      { postId }
+      [postId]
     );
 
-    const comments = result.recordset || [];
     console.log(`✅ Found ${comments.length} comments for post ${postId}`);
     res.json({ success: true, data: comments });
   } catch (error) {
@@ -47,12 +40,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     // Check post exists
-    const postCheck = await db.query(
-      'SELECT post_id FROM posts WHERE post_id = @post_id',
-      { post_id }
-    );
-
-    const posts = postCheck.recordset || [];
+    const [posts] = await db.query('SELECT post_id FROM posts WHERE post_id = ?', [post_id]);
     if (posts.length === 0) {
       return res.status(404).json({ success: false, message: 'Post not found' });
     }
@@ -61,14 +49,8 @@ router.post('/', verifyToken, async (req, res) => {
 
     await db.query(
       `INSERT INTO comment (comment_id, content_comment, rating, post_id, user_id, created_at)
-       VALUES (@comment_id, @content_comment, @rating, @post_id, @user_id, GETDATE())`,
-      {
-        comment_id,
-        content_comment,
-        rating: rating ?? null,
-        post_id,
-        user_id
-      }
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+      [comment_id, content_comment, rating || null, post_id, user_id]
     );
 
     res.status(201).json({ success: true, message: 'Comment created', comment_id });
@@ -85,12 +67,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     const user_id = req.user.user_id;
 
     // Check ownership
-    const ownerCheck = await db.query(
-      'SELECT user_id FROM comment WHERE comment_id = @id',
-      { id }
-    );
-
-    const comments = ownerCheck.recordset || [];
+    const [comments] = await db.query('SELECT user_id FROM comment WHERE comment_id = ?', [id]);
     if (comments.length === 0) {
       return res.status(404).json({ success: false, message: 'Comment not found' });
     }
@@ -100,16 +77,8 @@ router.put('/:id', verifyToken, async (req, res) => {
     }
 
     await db.query(
-      `UPDATE comment
-       SET content_comment = @content_comment, 
-           rating = @rating, 
-           updated_at = GETDATE()
-       WHERE comment_id = @id`,
-      {
-        id,
-        content_comment,
-        rating: rating ?? null
-      }
+      'UPDATE comment SET content_comment = ?, rating = ?, updated_at = NOW() WHERE comment_id = ?',
+      [content_comment, rating || null, id]
     );
 
     res.json({ success: true, message: 'Comment updated' });
@@ -125,12 +94,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const user_id = req.user.user_id;
 
     // Check ownership
-    const ownerCheck = await db.query(
-      'SELECT user_id FROM comment WHERE comment_id = @id',
-      { id }
-    );
-
-    const comments = ownerCheck.recordset || [];
+    const [comments] = await db.query('SELECT user_id FROM comment WHERE comment_id = ?', [id]);
     if (comments.length === 0) {
       return res.status(404).json({ success: false, message: 'Comment not found' });
     }
@@ -139,10 +103,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Unauthorized' });
     }
 
-    await db.query(
-      'DELETE FROM comment WHERE comment_id = @id',
-      { id }
-    );
+    await db.query('DELETE FROM comment WHERE comment_id = ?', [id]);
 
     res.json({ success: true, message: 'Comment deleted' });
   } catch (error) {
